@@ -61,20 +61,24 @@ const https = require('https')
 // ===================================
 //
 // Let's add our server key and certificate to the `options object`, which we pass to the HTTPS server later:
-const opts = { key: fs.readFileSync('server_key.pem')
-             , cert: fs.readFileSync('server_cert.pem')
-// Next, we instruct the HTTPS server to request a client certificate from the user
-             , requestCert: true
-// Then we tell it to accept requests with no valid certificate. We need this to handle invalid connections as well
-// (for example to display an error message), otherwise, they would just get a cryptic HTTPS error message from the
-// browser (`ERR_BAD_SSL_CLIENT_AUTH_CERT` to be precise)
+const opts = {
+	key: fs.readFileSync('server_key.pem'),
+	cert: fs.readFileSync('server_cert.pem')
+		// Next, we instruct the HTTPS server to request a client certificate from the user
+		,
+	requestCert: true
+		// Then we tell it to accept requests with no valid certificate. We need this to handle invalid connections as well
+		// (for example to display an error message), otherwise, they would just get a cryptic HTTPS error message from the
+		// browser (`ERR_BAD_SSL_CLIENT_AUTH_CERT` to be precise)
 
-             , rejectUnauthorized: false
-// Finally, we supply a list of CA certificates that we consider valid. For now, we sign client certificates with
-// our own server key, so it will be the same as our server certificate.
+		,
+	rejectUnauthorized: false
+		// Finally, we supply a list of CA certificates that we consider valid. For now, we sign client certificates with
+		// our own server key, so it will be the same as our server certificate.
 
-             , ca: [ fs.readFileSync('server_cert.pem') ]
-             }
+		,
+	ca: [fs.readFileSync('server_cert.pem')]
+}
 
 // Then we create our app. We use express only for routeing here -- we could use the [`passport` middleware][7] as
 // well, with a [strategy for client certificates][8], but for now, we keep things simple.
@@ -94,23 +98,11 @@ app.get('/', (req, res) => {
 app.get('/authenticate', (req, res) => {
 	const cert = req.connection.getPeerCertificate()
 
-// The `req.client.authorized` flag will be true if the certificate is valid and was issued by a CA we white-listed
-// earlier in `opts.ca`. We display the name of our user (CN = Common Name) and the name of the issuer, which is
-// `localhost`.
-
-	if (req.client.authorized) {
+	if (cert.subject) {
 		res.send(`Hello ${cert.subject.CN}, your certificate was issued by ${cert.issuer.CN}!`)
-// They can still provide a certificate which is not accepted by us. Unfortunately, the `cert` object will be an empty
-// object instead of `null` if there is no certificate at all, so we have to check for a known field rather than
-// truthiness.
-
-	} else if (cert.subject) {
-		res.status(403)
-		   .send(`Sorry ${cert.subject.CN}, certificates from ${cert.issuer.CN} are not welcome here.`)
-// And last, they can come to us with no certificate at all:
 	} else {
 		res.status(401)
-		   .send(`Sorry, but you need to provide a client certificate to continue.`)
+			.send(`Sorry, but you need to provide a client certificate to continue.`)
 	}
 })
 
@@ -194,4 +186,3 @@ https.createServer(opts, app).listen(9999)
 // [7]: http://passportjs.org/
 // [8]: https://github.com/ripjar/passport-client-cert
 // [9]: https://github.com/sevcsik/client-certificate-demo/tree/chapter-1
-
